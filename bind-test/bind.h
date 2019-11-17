@@ -37,7 +37,7 @@ namespace detail
     struct make_arg_holder : std::conditional<is_placeholder<Arg>, Arg, simple_arg_holder<Arg>> {};
 
     template<typename Arg>
-    using make_arg_holder_t = typename make_arg_holder<Arg>::type;
+    using make_arg_holder_t = typename make_arg_holder<std::decay_t<Arg>>::type;
 
     template<>
     class placeholder<0>
@@ -61,6 +61,15 @@ namespace detail
         }
     };
 }
+
+#define PLACEHOLDER(I) constexpr detail::placeholder<I - 1> _ ## I
+
+PLACEHOLDER(1);
+PLACEHOLDER(2);
+PLACEHOLDER(3);
+PLACEHOLDER(4);
+
+#undef PLACEHOLDER
 
 template<typename F, typename IndexSequence, typename... Args>
 class binder;
