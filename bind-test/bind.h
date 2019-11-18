@@ -132,6 +132,18 @@ class member_function_binder
 
     std::decay_t<Object> object;
 
+    template<typename Ptr>
+    static decltype(auto) get_object(Ptr * ptr)
+    {
+        return *ptr;
+    }
+
+    template<typename T>
+    static T&& get_object(T && t)
+    {
+        return std::forward<T>(t);
+    }
+
 public:
     using Base::operator ();
 
@@ -143,7 +155,7 @@ public:
     template<typename Self, size_t... I, typename... CallArgs>
     static decltype(auto) impl(Self && self, std::index_sequence<I...>, CallArgs &&... call_args)
     {
-        return (std::forward<Self>(self).object .* std::forward<Self>(self).f)
+        return (get_object(std::forward<Self>(self).object) .* std::forward<Self>(self).f)
             (std::get<I>(std::forward<Self>(self).args).extract(std::forward<CallArgs>(call_args)...)...);
     }
 };

@@ -83,8 +83,13 @@ namespace
     TEST(member_function, simple)
     {
         X x { 10 };
-        auto f = bind(&X::f, x, _1);
-        EXPECT_EQ(f(20), 30);
+        auto f1 = bind(&X::f, x, _1);
+        EXPECT_EQ(f1(20), 30);
+        auto f2 = bind(&X::f, &x, _1);
+        EXPECT_EQ(f2(20), 30);
+        x.field = 15;
+        EXPECT_EQ(f1(20), 30);
+        EXPECT_EQ(f2(20), 35);
     }
 }
 
