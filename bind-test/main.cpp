@@ -190,6 +190,22 @@ namespace
         auto partial_binder = ::bind(&OneShotCallback::operator(), _1, _2);
         EXPECT_EQ(partial_binder(OneShotCallback(), std::make_unique<int>(4)), 6);
     }
+
+    struct Point
+    {
+        int x, y;
+    };
+
+    TEST(member_data_pointer, simple)
+    {
+        Point p { 1, 2 };
+        auto x = bind(&Point::x, _1);
+        EXPECT_EQ(x(p), 1);
+        auto y = bind(&Point::y, _1);
+        EXPECT_EQ(y(&p), 2);
+
+        EXPECT_EQ(x(std::as_const(p)) + y(std::ref(p)), 3);
+    }
 }
 
 int main(int argc, char* argv[])

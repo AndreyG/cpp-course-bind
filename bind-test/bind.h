@@ -157,17 +157,18 @@ public:
     }
 };
 
-template<typename F, typename Object, typename... Args>
-class member_function_binder
-    : binder_base<member_function_binder<F, Object, Args...>, F, Args...>
+template<class Derived, typename F, typename Object, typename... Args>
+class member_pointer_binder
+    : protected binder_base<Derived, F, Args...>
 {
-    using Base = binder_base<member_function_binder, F, Args...>;
+    using Base = binder_base<Derived, F, Args...>;
     using class_type = typename detail::get_class_from_member_pointer<std::remove_reference_t<F>>::type;
 
     template<typename T>
     static constexpr bool is_convertible_to_class_type
         = std::is_convertible_v<std::add_lvalue_reference_t<std::remove_cv_t<std::remove_reference_t<T>>>, class_type &>;
 
+protected:
     detail::make_arg_holder_t<Object> object;
 
     template<typename Ptr>
@@ -188,25 +189,62 @@ class member_function_binder
         return std::forward<T>(t);
     }
 
-public:
-    using Base::operator ();
+    using Base::operator();
 
-    member_function_binder(F && f, Object && object, Args &&... args)
+public:
+    member_pointer_binder(F && f, Object && object, Args &&... args)
         : Base(std::forward<F>(f), std::forward<Args>(args)...)
         , object { std::forward<Object>(object) }
     {}
+};
+
+template<typename F, typename Object, typename... Args>
+class member_function_binder : member_pointer_binder<member_function_binder<F, Object, Args...>, F, Object, Args...>
+{
+    using Base = member_pointer_binder<member_function_binder<F, Object, Args...>, F, Object, Args...>;
+
+public:
+    using Base::Base;
+    using Base::operator();
 
     template<typename Self, size_t... I, typename... CallArgs>
     static decltype(auto) impl(Self && self, std::index_sequence<I...>, CallArgs &&... call_args)
     {
-        return (get_object(std::forward<Self>(self).object.extract(std::forward<CallArgs>(call_args)...), 0) .* std::forward<Self>(self).f)
+        return (Base::get_object(std::forward<Self>(self).object.extract(std::forward<CallArgs>(call_args)...), 0) .* std::forward<Self>(self).f)
             (std::get<I>(std::forward<Self>(self).args).extract(std::forward<CallArgs>(call_args)...)...);
     }
 };
 
+template<typename F, typename Object, typename... Garbage/* only for VS 2015*/>
+class member_data_binder : member_pointer_binder<member_data_binder<F, Object>, F, Object>
+{
+    static_assert(sizeof...(Garbage) == 0, "no garbage expected");
+    static_assert(std::is_member_object_pointer_v<std::remove_reference_t<F>>, "member object pointer expected");
+
+    using Base = member_pointer_binder<member_data_binder<F, Object>, F, Object>;
+
+public:
+    using Base::Base;
+    using Base::operator();
+
+    template<typename Self, typename... CallArgs>
+    static decltype(auto) impl(Self && self, std::index_sequence<>, CallArgs &&... call_args)
+    {
+        static_assert(sizeof...(call_args) <= 1, "sizeof...(call_args) > 1");
+        return Base::get_object(std::forward<Self>(self).object.extract(std::forward<CallArgs>(call_args)...), 0) .* std::forward<Self>(self).f;
+    }
+};
+
 template<typename F, typename... Args>
-using select_binder = std::conditional_t<std::is_member_function_pointer_v<std::remove_reference_t<F>>
-    , member_function_binder<F, Args...>
+using select_member_pointer_binder =
+    std::conditional_t<std::is_member_function_pointer_v<std::remove_reference_t<F>>
+        , member_function_binder<F, Args...>
+        , member_data_binder<F, Args...>
+    >;
+
+template<typename F, typename... Args>
+using select_binder = std::conditional_t<std::is_member_pointer_v<std::remove_reference_t<F>>
+    , select_member_pointer_binder<F, Args...>
     , free_function_binder<F, Args...>
 >;
 
