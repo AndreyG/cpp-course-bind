@@ -37,6 +37,38 @@ namespace
         auto sub_binder = bind(sub, _2, _1);
         EXPECT_EQ(sub_binder(3, 5), 2);
     }
+
+    struct Mapper
+    {
+        std::string&       operator()(int i, int j)       { return mapping_[{i, j}]; }
+        std::string const& operator()(int i, int j) const { return mapping_.at({ i, j }); }
+
+    private:
+        std::map<std::pair<int, int>, std::string> mapping_;
+    };
+
+    TEST(mapper, simple)
+    {
+        auto binder = bind(Mapper(), 10, _1);
+        binder(20) = "aba";
+        EXPECT_EQ(std::as_const(binder)(20), "aba");
+    }
+
+    TEST(mapper, ref)
+    {
+        auto mapper = Mapper();
+        auto binder = bind(mapper, 10, _1);
+        binder(20) = "aba";
+        ASSERT_THROW(std::as_const(mapper)(10, 20), std::out_of_range);
+    }
+
+    TEST(mapper, reference_wrapper)
+    {
+        auto mapper = Mapper();
+        auto binder = ::bind(std::ref(mapper), 10, _1);
+        binder(20) = "aba";
+        EXPECT_EQ(std::as_const(mapper)(10, 20), "aba");
+    }
 }
 
 int main(int argc, char* argv[])

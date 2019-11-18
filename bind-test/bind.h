@@ -77,7 +77,7 @@ class binder;
 template<typename F, typename... Args, size_t... I>
 class binder<F, std::index_sequence<I...>, Args...>
 {
-    F f;
+    std::decay_t<F> f;
     std::tuple<detail::make_arg_holder_t<Args>...> args;
 
 private:
