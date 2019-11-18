@@ -112,6 +112,20 @@ namespace
         x2->field = 15;
         EXPECT_EQ(f2(20), 35);
     }
+
+    TEST(member_function, reference_wrapper_this)
+    {
+        X x { 10 };
+        auto f = ::bind(&X::f, std::ref(x), _1);
+        EXPECT_EQ(f(20), 30);
+        x.field = 15;
+        EXPECT_EQ(f(20), 35);
+
+        auto cf = ::bind(&X::cf, std::cref(x), _1);
+        EXPECT_EQ(cf(20), 35);
+        x.field = 5;
+        EXPECT_EQ(cf(20), 25);
+    }
 }
 
 int main(int argc, char* argv[])

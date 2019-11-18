@@ -152,6 +152,12 @@ class member_function_binder
         return *std::forward<Ptr>(ptr);
     }
 
+    template<typename T>
+    static T& get_object(std::reference_wrapper<T> ref, int)
+    {
+        return ref.get();
+    }
+
     template<typename T, typename = std::enable_if_t<is_convertible_to_class_type<T>>>
     static T&& get_object(T && t, int)
     {
