@@ -142,7 +142,7 @@ class member_function_binder
 
     template<typename T>
     static constexpr bool is_convertible_to_class_type
-        = std::is_convertible_v<std::add_lvalue_reference_t<std::remove_reference_t<T>>, class_type &>;
+        = std::is_convertible_v<std::add_lvalue_reference_t<std::remove_cv_t<std::remove_reference_t<T>>>, class_type &>;
 
     std::decay_t<Object> object;
 

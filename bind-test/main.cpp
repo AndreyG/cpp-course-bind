@@ -78,6 +78,11 @@ namespace
         {
             return field + delta;
         }
+
+        long cf(short delta) const
+        {
+            return field + delta;
+        }
     };
 
     TEST(member_function, simple)
@@ -85,6 +90,10 @@ namespace
         X x { 10 };
         auto f1 = bind(&X::f, x, _1);
         EXPECT_EQ(f1(20), 30);
+        //std::as_const(f1)(20);
+        const auto cf1 = bind(&X::cf, x, _1);
+        EXPECT_EQ(cf1(20), 30);
+        cf1(20);
         auto f2 = bind(&X::f, &x, _1);
         EXPECT_EQ(f2(20), 30);
         x.field = 15;
