@@ -24,6 +24,18 @@ namespace detail
         }
     };
 
+    template<typename Arg>
+    struct simple_arg_holder<std::reference_wrapper<Arg>>
+    {
+        std::reference_wrapper<Arg> arg;
+
+        template<typename... CallArgs>
+        Arg& extract(CallArgs &&...)
+        {
+            return arg.get();
+        }
+    };
+
     template<size_t I>
     class placeholder;
 

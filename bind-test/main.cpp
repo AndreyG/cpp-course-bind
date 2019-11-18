@@ -126,6 +126,25 @@ namespace
         x.field = 5;
         EXPECT_EQ(cf(20), 25);
     }
+
+    struct Callable
+    {
+        int operator() (int& x) { return x + 1; }
+        int operator() (std::reference_wrapper<int> x) { return x + 2; }
+    };
+
+    TEST(callable, simple)
+    {
+        int i = 10;
+        auto std_binder = std::bind(Callable(), std::ref(i));
+        EXPECT_EQ(std_binder(), 11);
+        ++i;
+        EXPECT_EQ(std_binder(), 12);
+        auto our_binder = ::bind(Callable(), std::ref(i));
+        EXPECT_EQ(our_binder(), 12);
+        --i;
+        EXPECT_EQ(our_binder(), 11);
+    }
 }
 
 int main(int argc, char* argv[])
