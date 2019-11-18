@@ -71,49 +71,91 @@ PLACEHOLDER(4);
 
 #undef PLACEHOLDER
 
-template<typename F, typename IndexSequence, typename... Args>
-class binder;
-
-template<typename F, typename... Args, size_t... I>
-class binder<F, std::index_sequence<I...>, Args...>
+template<class Derived, typename F, typename... Args>
+class binder_base
 {
-    std::decay_t<F> f;
-    std::tuple<detail::make_arg_holder_t<Args>...> args;
-
-private:
-    template<typename Self, typename... CallArgs>
-    static decltype(auto) impl(Self && self, CallArgs &&... call_args)
-    {
-        return std::forward<Self>(self).f(std::get<I>(std::forward<Self>(self).args).extract(std::forward<CallArgs>(call_args)...)...);
-    }
-
     template<typename Arg>
     static auto make_arg_holder(Arg && arg)
     {
         return detail::make_arg_holder_t<Arg> { std::forward<Arg>(arg) };
     }
 
+    Derived       & self()       { return static_cast<Derived&>(*this); }
+    Derived const & self() const { return static_cast<Derived const &>(*this); }
+
+protected:
+    std::decay_t<F> f;
+    std::tuple<detail::make_arg_holder_t<Args>...> args;
+
 public:
-    binder(F && f, Args &&... args)
+    binder_base(F && f, Args &&... args)
         : f(std::forward<F>(f))
         , args(make_arg_holder(std::forward<Args>(args))...)
     {}
 
+public:
     template<typename... CallArgs>
     decltype(auto) operator() (CallArgs &&... call_args)
     {
-        return impl(*this, std::forward<CallArgs>(call_args)...);
+        return Derived::impl(self(), std::index_sequence_for<Args...>(), std::forward<CallArgs>(call_args)...);
     }
 
     template<typename... CallArgs>
     decltype(auto) operator() (CallArgs &&... call_args) const
     {
-        return impl(*this, std::forward<CallArgs>(call_args)...);
+        return Derived::impl(self(), std::index_sequence_for<Args...>(), std::forward<CallArgs>(call_args)...);
     }
 };
 
 template<typename F, typename... Args>
+class free_function_binder
+    : binder_base<free_function_binder<F, Args...>, F, Args...>
+{
+    using Base = binder_base<free_function_binder, F, Args...>;
+
+public:
+    using Base::operator ();
+    using Base::Base;
+
+    template<typename Self, size_t... I, typename... CallArgs>
+    static decltype(auto) impl(Self && self, std::index_sequence<I...>, CallArgs &&... call_args)
+    {
+        return std::forward<Self>(self).f(std::get<I>(std::forward<Self>(self).args).extract(std::forward<CallArgs>(call_args)...)...);
+    }
+};
+
+template<typename F, typename Object, typename... Args>
+class member_function_binder
+    : binder_base<member_function_binder<F, Object, Args...>, F, Args...>
+{
+    using Base = binder_base<member_function_binder, F, Args...>;
+
+    std::decay_t<Object> object;
+
+public:
+    using Base::operator ();
+
+    member_function_binder(F && f, Object && object, Args &&... args)
+        : Base(std::forward<F>(f), std::forward<Args>(args)...)
+        , object(std::forward<Object>(object))
+    {}
+
+    template<typename Self, size_t... I, typename... CallArgs>
+    static decltype(auto) impl(Self && self, std::index_sequence<I...>, CallArgs &&... call_args)
+    {
+        return (std::forward<Self>(self).object .* std::forward<Self>(self).f)
+            (std::get<I>(std::forward<Self>(self).args).extract(std::forward<CallArgs>(call_args)...)...);
+    }
+};
+
+template<typename F, typename... Args>
+using select_binder = std::conditional_t<std::is_member_function_pointer_v<std::remove_reference_t<F>>
+    , member_function_binder<F, Args...>
+    , free_function_binder<F, Args...>
+>;
+
+template<typename F, typename... Args>
 auto bind(F && f, Args &&... args)
 {
-    return binder<F, std::index_sequence_for<Args...>, Args...>(std::forward<F>(f), std::forward<Args>(args)...);
+    return select_binder<F, Args...>(std::forward<F>(f), std::forward<Args>(args)...);
 }

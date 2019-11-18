@@ -69,6 +69,23 @@ namespace
         binder(20) = "aba";
         EXPECT_EQ(std::as_const(mapper)(10, 20), "aba");
     }
+
+    struct X
+    {
+        int field;
+
+        long f(short delta)
+        {
+            return field + delta;
+        }
+    };
+
+    TEST(member_function, simple)
+    {
+        X x { 10 };
+        auto f = bind(&X::f, x, _1);
+        EXPECT_EQ(f(20), 30);
+    }
 }
 
 int main(int argc, char* argv[])
