@@ -91,6 +91,18 @@ namespace
         EXPECT_EQ(f1(20), 30);
         EXPECT_EQ(f2(20), 35);
     }
+
+    TEST(member_function, smart_this)
+    {
+        auto x1 = std::make_unique<X>(X { 10 });
+        auto f1 = ::bind(&X::f, std::move(x1), _1);
+        EXPECT_EQ(f1(20), 30);
+        auto x2 = std::make_shared<X>(X { 10 });
+        auto f2 = ::bind(&X::f, x2, _1);
+        EXPECT_EQ(f2(20), 30);
+        x2->field = 15;
+        EXPECT_EQ(f2(20), 35);
+    }
 }
 
 int main(int argc, char* argv[])

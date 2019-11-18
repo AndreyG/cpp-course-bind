@@ -60,6 +60,15 @@ namespace detail
             return placeholder<I - 1>::extract(std::forward<Rest>(rest)...);
         }
     };
+
+    template<typename MemberPointer>
+    struct get_class_from_member_pointer;
+
+    template<typename T, typename C>
+    struct get_class_from_member_pointer<T C::*>
+    {
+        using type = C;
+    };
 }
 
 #define PLACEHOLDER(I) constexpr detail::placeholder<I - 1> _ ## I
@@ -129,17 +138,22 @@ class member_function_binder
     : binder_base<member_function_binder<F, Object, Args...>, F, Args...>
 {
     using Base = binder_base<member_function_binder, F, Args...>;
+    using class_type = typename detail::get_class_from_member_pointer<std::remove_reference_t<F>>::type;
+
+    template<typename T>
+    static constexpr bool is_convertible_to_class_type
+        = std::is_convertible_v<std::add_lvalue_reference_t<std::remove_reference_t<T>>, class_type &>;
 
     std::decay_t<Object> object;
 
     template<typename Ptr>
-    static decltype(auto) get_object(Ptr * ptr)
+    static decltype(auto) get_object(Ptr && ptr, ...)
     {
-        return *ptr;
+        return *std::forward<Ptr>(ptr);
     }
 
-    template<typename T>
-    static T&& get_object(T && t)
+    template<typename T, typename = std::enable_if_t<is_convertible_to_class_type<T>>>
+    static T&& get_object(T && t, int)
     {
         return std::forward<T>(t);
     }
@@ -155,7 +169,7 @@ public:
     template<typename Self, size_t... I, typename... CallArgs>
     static decltype(auto) impl(Self && self, std::index_sequence<I...>, CallArgs &&... call_args)
     {
-        return (get_object(std::forward<Self>(self).object) .* std::forward<Self>(self).f)
+        return (get_object(std::forward<Self>(self).object, 0) .* std::forward<Self>(self).f)
             (std::get<I>(std::forward<Self>(self).args).extract(std::forward<CallArgs>(call_args)...)...);
     }
 };
