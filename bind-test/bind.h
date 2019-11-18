@@ -156,7 +156,7 @@ class member_function_binder
     static constexpr bool is_convertible_to_class_type
         = std::is_convertible_v<std::add_lvalue_reference_t<std::remove_cv_t<std::remove_reference_t<T>>>, class_type &>;
 
-    std::decay_t<Object> object;
+    detail::make_arg_holder_t<Object> object;
 
     template<typename Ptr>
     static decltype(auto) get_object(Ptr && ptr, ...)
@@ -181,13 +181,13 @@ public:
 
     member_function_binder(F && f, Object && object, Args &&... args)
         : Base(std::forward<F>(f), std::forward<Args>(args)...)
-        , object(std::forward<Object>(object))
+        , object { std::forward<Object>(object) }
     {}
 
     template<typename Self, size_t... I, typename... CallArgs>
     static decltype(auto) impl(Self && self, std::index_sequence<I...>, CallArgs &&... call_args)
     {
-        return (get_object(std::forward<Self>(self).object, 0) .* std::forward<Self>(self).f)
+        return (get_object(std::forward<Self>(self).object.extract(std::forward<CallArgs>(call_args)...), 0) .* std::forward<Self>(self).f)
             (std::get<I>(std::forward<Self>(self).args).extract(std::forward<CallArgs>(call_args)...)...);
     }
 };

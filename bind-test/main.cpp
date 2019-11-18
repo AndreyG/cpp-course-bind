@@ -145,6 +145,26 @@ namespace
         --i;
         EXPECT_EQ(our_binder(), 11);
     }
+
+    class Base
+    {
+    protected:
+        ~Base() = default;
+    public:
+        virtual int get() { return 1; }
+    };
+
+    class Derived final : public Base
+    {
+    public:
+        int get() override { return 2; }
+    };
+
+    TEST(member_function, virtual_)
+    {
+        auto binder = bind(&Base::get, _1);
+        EXPECT_EQ(binder(std::make_shared<Derived>()), 2);
+    }
 }
 
 int main(int argc, char* argv[])
