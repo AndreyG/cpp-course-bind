@@ -165,6 +165,31 @@ namespace
         auto binder = bind(&Base::get, _1);
         EXPECT_EQ(binder(std::make_shared<Derived>()), 2);
     }
+
+    using std::unique_ptr;
+
+    int deref_and_add(unique_ptr<int> a, unique_ptr<int> b)
+    {
+        return *a + *b;
+    }
+
+    struct OneShotCallback
+    {
+        unique_ptr<int> ptr1 = std::make_unique<int>(2);
+
+        int operator() (unique_ptr<int> ptr2) &&
+        {
+            return deref_and_add(move(ptr1), move(ptr2));
+        }
+    };
+
+    TEST(one_shot, simple)
+    {
+        auto full_binder = ::bind(OneShotCallback(), std::make_unique<int>(3));
+        EXPECT_EQ(std::move(full_binder)(), 5);
+        auto partial_binder = ::bind(&OneShotCallback::operator(), _1, _2);
+        EXPECT_EQ(partial_binder(OneShotCallback(), std::make_unique<int>(4)), 6);
+    }
 }
 
 int main(int argc, char* argv[])

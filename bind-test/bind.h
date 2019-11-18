@@ -12,15 +12,21 @@ namespace detail
         Arg arg;
 
         template<typename... CallArgs>
-        Arg& extract(CallArgs &&...)
+        Arg& extract(CallArgs &&...) &
         {
             return arg;
         }
 
         template<typename... CallArgs>
-        Arg const & extract(CallArgs &&...) const
+        Arg const & extract(CallArgs &&...) const &
         {
             return arg;
+        }
+
+        template<typename... CallArgs>
+        Arg && extract(CallArgs &&...) &&
+        {
+            return std::move(arg);
         }
     };
 
@@ -116,15 +122,21 @@ public:
 
 public:
     template<typename... CallArgs>
-    decltype(auto) operator() (CallArgs &&... call_args)
+    decltype(auto) operator() (CallArgs &&... call_args) &
     {
         return Derived::impl(self(), std::index_sequence_for<Args...>(), std::forward<CallArgs>(call_args)...);
     }
 
     template<typename... CallArgs>
-    decltype(auto) operator() (CallArgs &&... call_args) const
+    decltype(auto) operator() (CallArgs &&... call_args) const &
     {
         return Derived::impl(self(), std::index_sequence_for<Args...>(), std::forward<CallArgs>(call_args)...);
+    }
+
+    template<typename... CallArgs>
+    decltype(auto) operator() (CallArgs &&... call_args) &&
+    {
+        return Derived::impl(std::move(self()), std::index_sequence_for<Args...>(), std::forward<CallArgs>(call_args)...);
     }
 };
 
