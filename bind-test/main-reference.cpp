@@ -1,4 +1,4 @@
-#include "bind.h"
+#include "bind-reference.h"
 #include <gtest/gtest.h>
 
 namespace 
